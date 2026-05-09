@@ -41,7 +41,7 @@ COMMENTS_CSV = DATA_DIR / "comments.csv"
 # ----------------------------
 # Upload policy
 # ----------------------------
-ALLOWED_EXT = {"jpg", "jpeg", "png", "webp"}
+ALLOWED_EXT = {"jpg", "jpeg", "png", "webp", "gif", "heic", "heif"}
 MAX_FILES = int(os.environ.get("MAX_FILES", "5"))
 MAX_TOTAL_MB = int(os.environ.get("MAX_TOTAL_MB", "25"))  # whole request cap
 MAX_FILE_MB = int(os.environ.get("MAX_FILE_MB", "10"))    # per photo cap
@@ -295,13 +295,35 @@ def _list_photos(sid: str) -> list[str]:
     return sorted([p.name for p in d.iterdir() if p.is_file()])
 
 
+def _photos_from_csv_or_disk(sid: str, photos_raw: str) -> list[str]:
+    """Return card files from CSV plus a disk fallback.
+
+    Older cards may already have files in uploads/<id>/ while the CSV
+    `photos` field is empty or stale. The public card gallery must still
+    use those uploaded files instead of falling back to the NR logo.
+    CSV order is kept first; disk-only files are appended.
+    """
+    from_csv = [p.strip() for p in (photos_raw or "").split(";") if p.strip()]
+    from_disk = _list_photos(sid)
+
+    merged: list[str] = []
+    seen: set[str] = set()
+    for name in from_csv + from_disk:
+        # keep only plain filenames to avoid path traversal through CSV edits
+        clean = Path(name).name
+        if not clean or clean in seen:
+            continue
+        merged.append(clean)
+        seen.add(clean)
+    return merged
+
 
 def _image_photos(photos: list[str]) -> list[str]:
     """Return only image filenames that can be safely rendered in public card galleries."""
     out: list[str] = []
     for name in photos:
         ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
-        if ext in {"jpg", "jpeg", "png", "webp"}:
+        if ext in {"jpg", "jpeg", "png", "webp", "gif", "heic", "heif"}:
             out.append(name)
     return out
 
@@ -311,7 +333,7 @@ def _thumb_url(sid: str, kind: str, photos: list[str]) -> str:
     if photos:
         first = photos[0]
         ext = first.rsplit(".", 1)[-1].lower() if "." in first else ""
-        if ext in {"jpg","jpeg","png","webp","gif"}:
+        if ext in {"jpg","jpeg","png","webp","gif","heic","heif"}:
             return f"/uploads/{sid}/{quote(first)}"
     return "/static/logo.jpeg"
 
@@ -338,7 +360,7 @@ def _load_submissions(limit: int = 200) -> list[dict]:
             kind = (row.get("kind") or "material").strip().lower()
 
             photos_raw = (row.get("photos") or "").strip()
-            photos = [p for p in photos_raw.split(";") if p] if photos_raw else []
+            photos = _photos_from_csv_or_disk(sid, photos_raw)
 
             image_photos = _image_photos(photos)
 
@@ -454,7 +476,7 @@ def unlock(sid: str):
     flash("Неверный пароль.")
     return redirect(url_for("index"))
 
-# Если не хочешь публичные ссылки на фото — удали этот роут
+# Inline image/file serving route used by card galleries and admin previews.
 @app.get("/uploads/<sid>/<path:filename>")
 def uploads(sid: str, filename: str):
     # Если на карточке стоит пароль — файлы доступны только после ввода пароля
@@ -512,7 +534,7 @@ def _admin_submissions(limit: int = 500) -> list[dict]:
             kind = "sell"
 
         photos_raw = (r.get("photos") or "").strip()
-        photos = [p for p in photos_raw.split(";") if p] if photos_raw else _list_photos(sid)
+        photos = _photos_from_csv_or_disk(sid, photos_raw)
 
         image_photos = _image_photos(photos)
 
