@@ -288,11 +288,72 @@ def _find_row(rows: list[dict], sid: str) -> Optional[dict]:
     return None
 
 
+def _upload_roots() -> list[Path]:
+    """Possible upload roots.
+
+    Render deployments often evolve: older versions may have saved files into
+    the repository-local ./uploads folder, while production versions with a
+    persistent disk usually save them into /var/data/uploads. To avoid showing
+    the NR logo when files do exist, public cards and admin previews search all
+    plausible upload roots, but new uploads are still saved to UPLOADS_DIR.
+    """
+    candidates = [
+        UPLOADS_DIR,
+        BASE_DIR / "uploads",
+        DATA_DIR.parent / "uploads",
+        DATA_DIR / "uploads",
+        Path("/var/data/uploads"),
+    ]
+
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for c in candidates:
+        try:
+            r = c.resolve()
+        except Exception:
+            continue
+        key = str(r)
+        if key in seen:
+            continue
+        roots.append(r)
+        seen.add(key)
+    return roots
+
+
 def _list_photos(sid: str) -> list[str]:
-    d = UPLOADS_DIR / sid
-    if not d.exists() or not d.is_dir():
-        return []
-    return sorted([p.name for p in d.iterdir() if p.is_file()])
+    """List files for a card from all known upload roots, CSV-safe filenames only."""
+    names: list[str] = []
+    seen: set[str] = set()
+    for root in _upload_roots():
+        d = root / sid
+        if not d.exists() or not d.is_dir():
+            continue
+        for p in sorted(d.iterdir(), key=lambda x: x.name.lower()):
+            if not p.is_file():
+                continue
+            clean = Path(p.name).name
+            if not clean or clean in seen:
+                continue
+            names.append(clean)
+            seen.add(clean)
+    return names
+
+
+def _find_upload_file(sid: str, filename: str) -> Optional[Path]:
+    """Find an uploaded file for serving, searching all known upload roots safely."""
+    clean = Path(filename).name
+    if not clean:
+        return None
+    for root in _upload_roots():
+        base = (root / sid).resolve()
+        p = (base / clean).resolve()
+        try:
+            p.relative_to(base)
+        except ValueError:
+            continue
+        if p.exists() and p.is_file():
+            return p
+    return None
 
 
 def _photos_from_csv_or_disk(sid: str, photos_raw: str) -> list[str]:
@@ -489,7 +550,12 @@ def uploads(sid: str, filename: str):
                 unlocked = set(session.get("unlocked_cards", []) or [])
                 if sid not in unlocked:
                     abort(403)
-    return send_from_directory(UPLOADS_DIR / sid, filename)
+
+    found = _find_upload_file(sid, filename)
+    if not found:
+        abort(404)
+    # inline=True: пользователь видит фото в карточке/браузере; отдельного скачивания мы не предлагаем.
+    return send_file(found, as_attachment=False)
 
 
 @app.get("/health")
@@ -763,6 +829,43 @@ def admin_comment_delete(cid: str):
     if target and (target.get("card_id") or "").strip():
         return redirect(f"/admin/edit/{target.get('card_id')}")
     return redirect("/admin")
+
+
+@app.get("/admin/debug/<sid>")
+@admin_required
+def admin_debug_card(sid: str):
+    rows = _read_all_rows()
+    r = _find_row(rows, sid)
+    if not r:
+        abort(404)
+
+    photos_raw = (r.get("photos") or "").strip()
+    photos_from_csv = [p.strip() for p in photos_raw.split(";") if p.strip()]
+    root_info = []
+    for root in _upload_roots():
+        d = root / sid
+        files = []
+        if d.exists() and d.is_dir():
+            files = sorted([p.name for p in d.iterdir() if p.is_file()])
+        root_info.append({
+            "root": str(root),
+            "card_dir": str(d),
+            "exists": d.exists(),
+            "files": files,
+        })
+
+    return render_template(
+        "admin/debug.html",
+        sid=sid,
+        row=r,
+        photos_from_csv=photos_from_csv,
+        photos_final=_photos_from_csv_or_disk(sid, photos_raw),
+        image_photos=_image_photos(_photos_from_csv_or_disk(sid, photos_raw)),
+        root_info=root_info,
+        uploads_dir=str(UPLOADS_DIR),
+        data_dir=str(DATA_DIR),
+        base_dir=str(BASE_DIR),
+    )
 
 
 @app.get("/admin/comments_csv")

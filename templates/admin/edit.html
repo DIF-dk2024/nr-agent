@@ -48,6 +48,7 @@
         <div style="color:var(--muted);font-size:12px;">ID: <code>{{ sid }}</code></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="btn" href="/admin/debug/{{ sid }}">Проверить фото</a>
         <a class="btn" href="/uploads/{{ sid }}/{{ first_photo }}" target="_blank" rel="noreferrer" {% if not first_photo %}style="display:none"{% endif %}>Открыть файл</a>
         <form method="post" action="/admin/delete/{{ sid }}" onsubmit="return confirm('Удалить {{ sid }} и все файлы?')">
           <button class="btn danger" type="submit">Удалить</button>
