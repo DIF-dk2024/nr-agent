@@ -42,6 +42,9 @@ COMMENTS_CSV = DATA_DIR / "comments.csv"
 # Upload policy
 # ----------------------------
 ALLOWED_EXT = {"jpg", "jpeg", "png", "webp", "gif", "heic", "heif"}
+# Only these formats are reliably rendered by normal browsers inside <img>.
+# HEIC/HEIF can be uploaded, but most browsers will not preview them without conversion.
+BROWSER_IMAGE_EXT = {"jpg", "jpeg", "png", "webp", "gif"}
 MAX_FILES = int(os.environ.get("MAX_FILES", "5"))
 MAX_TOTAL_MB = int(os.environ.get("MAX_TOTAL_MB", "25"))  # whole request cap
 MAX_FILE_MB = int(os.environ.get("MAX_FILE_MB", "10"))    # per photo cap
@@ -79,9 +82,80 @@ def _new_id() -> str:
     return uuid.uuid4().hex[:10].upper()
 
 
+def _original_ext(filename: str) -> str:
+    """Return the original lowercase extension with leading dot, or an empty string."""
+    name = Path(filename or "").name
+    suffix = Path(name).suffix.lower()
+    if suffix and suffix[1:] in ALLOWED_EXT:
+        return suffix
+    return ""
+
+
 def _allowed_file(filename: str) -> bool:
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    return ext in ALLOWED_EXT
+    return bool(_original_ext(filename))
+
+
+def _safe_upload_filename(original_filename: str) -> str:
+    """Make a safe filename while preserving the original image extension.
+
+    Werkzeug's secure_filename() can turn Cyrillic filenames like `фото.jpg`
+    into `jpg` with no dot/extension. Then the file is saved successfully,
+    but the public card does not recognise it as an image and shows logo.jpeg.
+    This helper sanitises the stem and then deliberately re-attaches the
+    original extension.
+    """
+    original_name = Path(original_filename or "").name
+    ext = _original_ext(original_name)
+    raw_stem = Path(original_name).stem
+    safe_stem = secure_filename(raw_stem).strip("._-")
+    if not safe_stem:
+        safe_stem = f"photo_{uuid.uuid4().hex[:8]}"
+    if not ext:
+        # Keep a usable name even for a non-image/unknown file; current forms accept image/*,
+        # but this avoids accidental empty filenames.
+        safe_whole = secure_filename(original_name).strip("._-")
+        return safe_whole or f"file_{uuid.uuid4().hex[:8]}"
+    return f"{safe_stem}{ext}"
+
+
+def _guess_image_mime(path: Path) -> str:
+    """Detect common browser-displayable image types by file signature."""
+    try:
+        with path.open("rb") as f:
+            head = f.read(64)
+    except Exception:
+        return ""
+
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if len(head) >= 12 and head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return ""
+
+
+def _browser_image_mime_for(sid: str, filename: str) -> str:
+    """Return MIME type if the file can be displayed as an <img>, otherwise ''."""
+    clean = Path(filename or "").name
+    ext = clean.rsplit(".", 1)[-1].lower() if "." in clean else ""
+    if ext in BROWSER_IMAGE_EXT:
+        return {
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "png": "image/png",
+            "webp": "image/webp",
+            "gif": "image/gif",
+        }.get(ext, "")
+
+    # Backward compatibility for old Render uploads saved without an extension
+    # because the original filename was Cyrillic.
+    found = _find_upload_file(sid, clean)
+    if found:
+        return _guess_image_mime(found)
+    return ""
 
 
 def _csv_columns() -> list[str]:
@@ -379,13 +453,19 @@ def _photos_from_csv_or_disk(sid: str, photos_raw: str) -> list[str]:
     return merged
 
 
-def _image_photos(photos: list[str]) -> list[str]:
-    """Return only image filenames that can be safely rendered in public card galleries."""
+def _image_photos(sid: str, photos: list[str]) -> list[str]:
+    """Return only files that a browser can actually render in the card gallery.
+
+    This checks both filename extension and, for legacy extensionless uploads,
+    the file signature on disk.
+    """
     out: list[str] = []
     for name in photos:
-        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
-        if ext in {"jpg", "jpeg", "png", "webp", "gif", "heic", "heif"}:
-            out.append(name)
+        clean = Path(name or "").name
+        if not clean:
+            continue
+        if _browser_image_mime_for(sid, clean):
+            out.append(clean)
     return out
 
 
@@ -423,7 +503,7 @@ def _load_submissions(limit: int = 200) -> list[dict]:
             photos_raw = (row.get("photos") or "").strip()
             photos = _photos_from_csv_or_disk(sid, photos_raw)
 
-            image_photos = _image_photos(photos)
+            image_photos = _image_photos(sid, photos)
 
             items.append({
                 "id": sid,
@@ -555,7 +635,9 @@ def uploads(sid: str, filename: str):
     if not found:
         abort(404)
     # inline=True: пользователь видит фото в карточке/браузере; отдельного скачивания мы не предлагаем.
-    return send_file(found, as_attachment=False)
+    # mimetype is important for old extensionless uploads saved from Cyrillic filenames.
+    mime = _browser_image_mime_for(sid, filename) or None
+    return send_file(found, as_attachment=False, mimetype=mime)
 
 
 @app.get("/health")
@@ -602,7 +684,7 @@ def _admin_submissions(limit: int = 500) -> list[dict]:
         photos_raw = (r.get("photos") or "").strip()
         photos = _photos_from_csv_or_disk(sid, photos_raw)
 
-        image_photos = _image_photos(photos)
+        image_photos = _image_photos(sid, photos)
 
         items.append({
             "id": sid,
@@ -682,7 +764,7 @@ def admin_create():
         sub_dir = UPLOADS_DIR / sid
         sub_dir.mkdir(parents=True, exist_ok=True)
         for f in files:
-            safe = secure_filename(f.filename) or "file"
+            safe = _safe_upload_filename(f.filename)
             target = sub_dir / safe
             if target.exists():
                 target = sub_dir / f"{target.stem}_{uuid.uuid4().hex[:6]}{target.suffix}"
@@ -796,7 +878,7 @@ def admin_upload(sid: str):
 
     saved = 0
     for f in files:
-        name = secure_filename(f.filename) or "photo.jpg"
+        name = _safe_upload_filename(f.filename)
         target = sub_dir / name
         if target.exists():
             target = sub_dir / f"{target.stem}_{uuid.uuid4().hex[:6]}{target.suffix}"
@@ -860,7 +942,7 @@ def admin_debug_card(sid: str):
         row=r,
         photos_from_csv=photos_from_csv,
         photos_final=_photos_from_csv_or_disk(sid, photos_raw),
-        image_photos=_image_photos(_photos_from_csv_or_disk(sid, photos_raw)),
+        image_photos=_image_photos(sid, _photos_from_csv_or_disk(sid, photos_raw)),
         root_info=root_info,
         uploads_dir=str(UPLOADS_DIR),
         data_dir=str(DATA_DIR),
