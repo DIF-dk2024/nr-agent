@@ -92,7 +92,7 @@
       <div class="card">
         <form method="post" action="/admin/upload/{{ sid }}" enctype="multipart/form-data">
           <label>Добавить файлы</label>
-          <input name="photos" type="file" multiple>
+          <input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
           <div class="row">
             <button class="btn accent" type="submit">Загрузить</button>
           </div>

@@ -80,8 +80,37 @@
     .card-item{display:flex;gap:12px;align-items:stretch;background: var(--card);border:1px solid var(--border);border-radius:20px;padding:12px;cursor:pointer;}
     .card-item.buyer{background: var(--buyer);border-color:#2d2d2d;}
 
-    .thumb-list{width:110px;flex:0 0 110px;border-radius:16px;overflow:hidden;border:1px solid var(--border);background:#0e0e0e;text-decoration:none;display:block;}
-    .thumb-list img{width:100%;height:100%;object-fit:cover;display:block;}
+    .photo-carousel{
+      width:150px;
+      flex:0 0 150px;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid var(--border);
+      background:#050505;
+      display:flex;
+      gap:0;
+      aspect-ratio:4/3;
+      overflow-x:auto;
+      overflow-y:hidden;
+      scroll-snap-type:x mandatory;
+      scroll-behavior:smooth;
+      -webkit-overflow-scrolling:touch;
+      cursor:default;
+      scrollbar-width:thin;
+    }
+    .photo-carousel::-webkit-scrollbar{height:6px;}
+    .photo-carousel::-webkit-scrollbar-track{background:#0b0b0b;}
+    .photo-carousel::-webkit-scrollbar-thumb{background:#333;border-radius:999px;}
+    .photo-slide{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;background:#050505;}
+    .photo-slide img{width:100%;height:100%;object-fit:contain;display:block;}
+    .photo-slide.logo-fallback img{object-fit:cover;}
+    .photo-count{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.10);border-radius:999px;padding:4px 8px;color:#fff;font-size:11px;font-weight:800;backdrop-filter:blur(6px);pointer-events:none;}
+    .photo-shell{position:relative;width:150px;flex:0 0 150px;align-self:flex-start;}
+    @media(max-width:720px){
+      .card-item{flex-direction:column;}
+      .photo-shell{width:100%;flex:0 0 auto;}
+      .photo-carousel{width:100%;flex-basis:auto;aspect-ratio:16/10;}
+    }
 
     .meta2{flex:1;min-width:0;}
     .row1{display:flex;gap:10px;align-items:baseline;justify-content:space-between;}
@@ -143,15 +172,28 @@
         <div class="cards">
           {% for s in submissions %}
             <div id="card-{{ s.id }}" class="card-item" role="button" tabindex="0" aria-expanded="false">
-              {% if s.password and not s.unlocked %}
-  <div class="thumb-list locked" aria-hidden="true">
-    <img src="{{ s.thumb_url }}" alt="locked {{ s.id }}">
-  </div>
-{% else %}
-  <a class="thumb-list" href="{{ s.thumb_url }}" target="_blank" rel="noreferrer">
-    <img src="{{ s.thumb_url }}" alt="thumb {{ s.id }}">
-  </a>
-{% endif %}
+              <div class="photo-shell">
+                <div class="photo-carousel" aria-label="Фото карточки {{ s.id }}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+                  {% if s.password and not s.unlocked %}
+                    <div class="photo-slide logo-fallback">
+                      <img src="{{ s.thumb_url }}" alt="Файлы закрыты {{ s.id }}">
+                    </div>
+                  {% elif s.image_photos and s.image_photos|length %}
+                    {% for p in s.image_photos %}
+                      <div class="photo-slide">
+                        <img src="{{ url_for('uploads', sid=s.id, filename=p) }}" alt="Фото {{ loop.index }} — {{ s.title }}" loading="lazy">
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="photo-slide logo-fallback">
+                      <img src="/static/logo.jpeg" alt="NR KITAP">
+                    </div>
+                  {% endif %}
+                </div>
+                {% if not (s.password and not s.unlocked) and s.image_photos and s.image_photos|length > 1 %}
+                  <div class="photo-count">{{ s.image_photos|length }} фото</div>
+                {% endif %}
+              </div>
 
               <div class="meta2">
                 <div class="row1">
@@ -182,14 +224,10 @@
 
                   {% if s.password %}
                     {% if s.unlocked %}
-                      {% if s.photos and s.photos|length %}
+                      {% if s.image_photos and s.image_photos|length %}
                         <div class="detail-block">
-                          <div class="detail-label">Файлы</div>
-                          <div class="detail-text">
-                            {% for p in s.photos %}
-                              <a href="/uploads/{{ s.id }}/{{ p }}" target="_blank" rel="noreferrer" style="color:var(--accent);text-decoration:none;">{{ p }}</a>{% if not loop.last %}, {% endif %}
-                            {% endfor %}
-                          </div>
+                          <div class="detail-label">Фото</div>
+                          <div class="detail-text">Фото доступны в галерее карточки. Листайте изображения горизонтально.</div>
                         </div>
                       {% endif %}
                     {% else %}
@@ -205,14 +243,10 @@
                       </div>
                     {% endif %}
                   {% else %}
-                    {% if s.photos and s.photos|length %}
+                    {% if s.image_photos and s.image_photos|length %}
                       <div class="detail-block">
-                        <div class="detail-label">Файлы</div>
-                        <div class="detail-text">
-                          {% for p in s.photos %}
-                            <a href="/uploads/{{ s.id }}/{{ p }}" target="_blank" rel="noreferrer" style="color:var(--accent);text-decoration:none;">{{ p }}</a>{% if not loop.last %}, {% endif %}
-                          {% endfor %}
-                        </div>
+                        <div class="detail-label">Фото</div>
+                        <div class="detail-text">Фото доступны в галерее карточки. Листайте изображения горизонтально.</div>
                       </div>
                     {% endif %}
                   {% endif %}
@@ -279,12 +313,12 @@
     document.querySelectorAll('.card-item').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target && (e.target.tagName === 'A' || e.target.closest('a'))) return;
-        if (e.target && e.target.closest('input, textarea, select, button, label, form')) return;
+        if (e.target && e.target.closest('input, textarea, select, button, label, form, .photo-carousel')) return;
         toggleCard(card);
       });
 
       card.addEventListener('keydown', (e) => {
-        if (e.target && e.target.closest('input, textarea, select, button')) return;
+        if (e.target && e.target.closest('input, textarea, select, button, .photo-carousel')) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           toggleCard(card);

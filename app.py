@@ -295,6 +295,17 @@ def _list_photos(sid: str) -> list[str]:
     return sorted([p.name for p in d.iterdir() if p.is_file()])
 
 
+
+def _image_photos(photos: list[str]) -> list[str]:
+    """Return only image filenames that can be safely rendered in public card galleries."""
+    out: list[str] = []
+    for name in photos:
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        if ext in {"jpg", "jpeg", "png", "webp"}:
+            out.append(name)
+    return out
+
+
 def _thumb_url(sid: str, kind: str, photos: list[str]) -> str:
     # превью: первое изображение, иначе лого
     if photos:
@@ -329,6 +340,8 @@ def _load_submissions(limit: int = 200) -> list[dict]:
             photos_raw = (row.get("photos") or "").strip()
             photos = [p for p in photos_raw.split(";") if p] if photos_raw else []
 
+            image_photos = _image_photos(photos)
+
             items.append({
                 "id": sid,
                 "created_utc": (row.get("created_utc") or "").strip(),
@@ -338,7 +351,8 @@ def _load_submissions(limit: int = 200) -> list[dict]:
                 "phone": (row.get("phone") or "").strip(),
                 "description": (row.get("description") or "").strip(),
                 "photos": photos,
-                "thumb_url": _thumb_url(sid, kind, photos),
+                "image_photos": image_photos,
+                "thumb_url": _thumb_url(sid, kind, image_photos),
                 "password": (row.get("password") or "").strip(),
                 "comments": comments_map.get(sid, []),
                 "comment_count": len(comments_map.get(sid, [])),
@@ -500,6 +514,8 @@ def _admin_submissions(limit: int = 500) -> list[dict]:
         photos_raw = (r.get("photos") or "").strip()
         photos = [p for p in photos_raw.split(";") if p] if photos_raw else _list_photos(sid)
 
+        image_photos = _image_photos(photos)
+
         items.append({
             "id": sid,
             "created_utc": (r.get("created_utc") or "").strip(),
@@ -509,7 +525,8 @@ def _admin_submissions(limit: int = 500) -> list[dict]:
             "phone": (r.get("phone") or "").strip(),
             "description": (r.get("description") or "").strip(),
             "photos": photos,
-            "thumb_url": _thumb_url(sid, kind, photos),
+            "image_photos": image_photos,
+            "thumb_url": _thumb_url(sid, kind, image_photos),
             "password": (r.get("password") or "").strip(),
             "comment_count": len(comments_map.get(sid, [])),
         })
