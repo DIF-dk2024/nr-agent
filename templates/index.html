@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo.jpeg') }}">
+  <title>NR KITAP — Библиотека материалов Numerical Research</title>
+  <style>
+    :root{
+      --bg:#000;
+      --card:#0b0b0b;
+      --card2:#111;
+      --text:#fff;
+      --muted:#bdbdbd;
+      --border:#222;
+      --accent:#FF9F0A;
+      --buyer:#1c1c1c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+    .wrap{max-width:980px;margin:0 auto;padding:22px 14px 60px;}
+    .top{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+    .logo{width:64px;height:64px;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:var(--card);flex:0 0 auto;}
+    .logo img{width:100%;height:100%;object-fit:cover;display:block}
+    .title h1{font-size:20px;line-height:1.1;margin:0 0 4px}
+    .title p{margin:0;color:var(--muted);font-size:13px}
+    .title a{color:var(--accent);text-decoration:none}
+
+    .hero{background:linear-gradient(180deg, rgba(255,159,10,0.08), rgba(255,159,10,0.00));border:1px solid var(--border);border-radius:20px;padding:18px 16px;margin:14px 0 14px;}
+    .hero h2{margin:0 0 6px;font-size:18px}
+    .hero p{margin:0;color:var(--muted);font-size:14px}
+
+    .btnrow{display:flex;gap:10px;}
+    .btn{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:14px 16px;
+      font-weight:900;
+      letter-spacing:0.04em;
+      font-size:14px;
+      cursor:pointer;
+      background:#111;
+      color:#fff;
+    }
+    .btn.primary{background:var(--accent);color:#000;border-color:transparent;}
+
+    .card{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px;display:none;}
+    .card.show{display:block}
+
+    .grid{display:grid;grid-template-columns: 1fr 1fr;gap:12px;margin-top:12px;}
+    @media (max-width: 720px){.grid{grid-template-columns:1fr}}
+
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px;}
+    input, textarea{width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--border);background:var(--card2);color:var(--text);outline:none;font-size:14px;}
+    textarea{min-height:110px;resize:vertical}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px}
+
+    .row{margin-top:12px;display:flex;gap:10px;align-items:center;}
+    .row .btn2{flex:1;background:#111;color:#fff;border:1px solid var(--border);border-radius:16px;padding:12px 14px;font-weight:800;cursor:pointer;}
+    .row .btn2.primary{background:var(--accent);color:#000;border-color: transparent;}
+
+    .flash{background:#140d00;border:1px solid rgba(255,159,10,0.35);color:#ffd9a1;padding:10px 12px;border-radius:14px;margin:10px 0 0;font-size:13px;}
+
+    /* ---- previews ---- */
+    .previews-wrap{margin-top:10px;}
+    .previews-title{color:var(--muted);font-size:12px;margin:8px 0 8px;}
+    .previews{display:grid;grid-template-columns: repeat(5, minmax(0, 1fr));gap:10px;}
+    @media (max-width: 720px){.previews{grid-template-columns: repeat(3, minmax(0, 1fr));}}
+    .thumb{border:1px solid var(--border);background:#0e0e0e;border-radius:14px;overflow:hidden;position:relative;aspect-ratio: 1 / 1;}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block;transform: scale(1.001);}
+    .thumb .cap{position:absolute;left:8px;right:8px;bottom:8px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 8px;font-size:11px;line-height:1.2;color:#fff;backdrop-filter: blur(6px);overflow:hidden;text-overflow: ellipsis;white-space: nowrap;}
+
+    /* ---- listings ---- */
+    .listings{margin-top:18px;}
+    .listings h3{margin:0 0 10px;font-size:16px;}
+    .cards{display:grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap:12px;}
+    @media(max-width:720px){.cards{grid-template-columns:1fr;}}
+
+    .card-item{display:flex;gap:12px;align-items:stretch;background: var(--card);border:1px solid var(--border);border-radius:20px;padding:12px;cursor:pointer;}
+    .card-item.buyer{background: var(--buyer);border-color:#2d2d2d;}
+
+    .thumb-list{width:110px;flex:0 0 110px;border-radius:16px;overflow:hidden;border:1px solid var(--border);background:#0e0e0e;text-decoration:none;display:block;}
+    .thumb-list img{width:100%;height:100%;object-fit:cover;display:block;}
+
+    .meta2{flex:1;min-width:0;}
+    .row1{display:flex;gap:10px;align-items:baseline;justify-content:space-between;}
+    .price{font-weight:900;font-size:16px;}
+    .small{color:var(--muted);font-size:12px;}
+    .addr{margin-top:6px;font-size:13px;line-height:1.25;color:#fff;opacity:.95;word-break:break-word;}
+    .badges{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;}
+    .badge{font-size:12px;color:#fff;border:1px solid var(--border);background:#111;padding:6px 10px;border-radius:999px;}
+    .idtag{margin-top:8px;color:var(--muted);font-size:12px;}
+
+    .details{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+    .card-item.open .details{display:block;}
+
+    .detail-block{margin-top:10px;}
+    .detail-label{color:var(--muted);font-size:12px;margin-bottom:6px;}
+    .detail-text{font-size:13px;line-height:1.35;word-break:break-word;}
+
+    .comments{margin-top:14px;border-top:1px solid var(--border);padding-top:12px;}
+    .comment-title{font-size:13px;font-weight:900;margin:0 0 10px;}
+    .comment-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+    .comment{background:#080808;border:1px solid var(--border);border-radius:14px;padding:10px;}
+    .comment-head{display:flex;gap:8px;justify-content:space-between;align-items:baseline;color:var(--muted);font-size:11px;margin-bottom:6px;}
+    .comment-contact{color:#fff;font-weight:800;word-break:break-word;}
+    .comment-message{font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word;}
+    .comment-form{background:#080808;border:1px solid var(--border);border-radius:16px;padding:10px;}
+    .comment-form textarea{min-height:78px;}
+    .comment-form-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+    .comment-submit{border:0;border-radius:14px;padding:11px 12px;font-weight:900;background:var(--accent);color:#000;cursor:pointer;width:100%;}
+
+    .meta{margin-top:14px;color:var(--muted);font-size:12px;opacity:0.75;}
+    code{background:#111;border:1px solid #222;padding:2px 6px;border-radius:8px;color:#fff}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="logo"><img src="/static/logo.jpeg" alt="NR KITAP" /></div>
+      <div class="title">
+        <h1>NR KITAP</h1>
+        <p>По вопросам - пиши в Telegram <a href="https://t.me/numresearch" target="_blank" rel="noreferrer">@numresearch</a></p>
+      </div>
+    </div>
+
+    <div class="hero">
+      <h2>Библиотека материалов Numerical Research</h2>
+</div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+<!-- LISTINGS -->
+    <div class="listings">
+      <h3>Материалы</h3>
+
+      {% if submissions and submissions|length %}
+        <div class="cards">
+          {% for s in submissions %}
+            <div id="card-{{ s.id }}" class="card-item" role="button" tabindex="0" aria-expanded="false">
+              {% if s.password and not s.unlocked %}
+  <div class="thumb-list locked" aria-hidden="true">
+    <img src="{{ s.thumb_url }}" alt="locked {{ s.id }}">
+  </div>
+{% else %}
+  <a class="thumb-list" href="{{ s.thumb_url }}" target="_blank" rel="noreferrer">
+    <img src="{{ s.thumb_url }}" alt="thumb {{ s.id }}">
+  </a>
+{% endif %}
+
+              <div class="meta2">
+                <div class="row1">
+                  {% if s.price_tenge %}<div class="price">{{ s.price_tenge }}{% if s.price_tenge|is_numeric %} ₸{% endif %}</div>{% endif %}
+                  <div class="small">{{ s.created_utc }}</div>
+                </div>
+
+                <div class="addr">{{ s.title }}</div>
+
+                <div class="badges">
+                  {% if s.photos and s.photos|length %}<span class="badge">{{ s.photos|length }} файлов</span>{% endif %}
+                  {% if s.comment_count %}<span class="badge">💬 {{ s.comment_count }}</span>{% endif %}
+                  {% if s.password %}<span class="badge">🔒</span>{% endif %}
+                </div>
+
+                <div class="details">
+                  {% if s.description %}
+                    <div class="detail-block">
+                      <div class="detail-label">Описание</div>
+                      <div class="detail-text">{{ s.description }}</div>
+                    </div>
+                  {% endif %}
+
+                  <div class="detail-block">
+                    <div class="detail-label">ID</div>
+                    <div class="detail-text">{{ s.id }}</div>
+                  </div>
+
+                  {% if s.password %}
+                    {% if s.unlocked %}
+                      {% if s.photos and s.photos|length %}
+                        <div class="detail-block">
+                          <div class="detail-label">Файлы</div>
+                          <div class="detail-text">
+                            {% for p in s.photos %}
+                              <a href="/uploads/{{ s.id }}/{{ p }}" target="_blank" rel="noreferrer" style="color:var(--accent);text-decoration:none;">{{ p }}</a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% else %}
+                      <div class="detail-block">
+                        <div class="detail-label">Пароль</div>
+                        <div class="detail-text">
+                          <form method="post" action="/unlock/{{ s.id }}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <input name="password" type="password" placeholder="Введите пароль" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" style="max-width:260px;" />
+                            <button type="submit" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" class="btn2 primary" style="padding:10px 12px;border-radius:14px;">Открыть файлы</button>
+                          </form>
+                          <div class="small" style="margin-top:6px;">Файлы доступны после ввода пароля.</div>
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% else %}
+                    {% if s.photos and s.photos|length %}
+                      <div class="detail-block">
+                        <div class="detail-label">Файлы</div>
+                        <div class="detail-text">
+                          {% for p in s.photos %}
+                            <a href="/uploads/{{ s.id }}/{{ p }}" target="_blank" rel="noreferrer" style="color:var(--accent);text-decoration:none;">{{ p }}</a>{% if not loop.last %}, {% endif %}
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% endif %}
+
+                  <div class="comments">
+                    <div class="comment-title">Комментарии{% if s.comment_count %} · {{ s.comment_count }}{% endif %}</div>
+
+                    {% if s.comments and s.comments|length %}
+                      <div class="comment-list">
+                        {% for c in s.comments %}
+                          <div class="comment">
+                            <div class="comment-head">
+                              <span class="comment-contact">{{ c.contact }}</span>
+                              <span>{{ c.created_utc }}</span>
+                            </div>
+                            <div class="comment-message">{{ c.message }}</div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="small" style="margin-bottom:10px;">Пока нет комментариев.</div>
+                    {% endif %}
+
+                    <form class="comment-form" method="post" action="/comment/{{ s.id }}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">
+                      <div class="comment-form-grid">
+                        <div>
+                          <label>Мой контакт *</label>
+                          <input name="contact" maxlength="120" required placeholder="Telegram, WhatsApp, email или телефон" onkeydown="event.stopPropagation()">
+                        </div>
+                        <div>
+                          <label>Комментарий *</label>
+                          <textarea name="message" maxlength="2000" required placeholder="Напишите комментарий" onkeydown="event.stopPropagation()"></textarea>
+                        </div>
+                        <button class="comment-submit" type="submit">Оставить комментарий</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+
+                <div class="idtag">Нажми, чтобы раскрыть</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="small">Пока нет материалов.</div>
+      {% endif %}
+    </div>
+    <div class="meta">Numerical Research</div>
+  </div>
+  <script>
+    // accordion cards
+    function toggleCard(el){
+      const isOpen = el.classList.toggle('open');
+      el.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    const hashCard = window.location.hash ? document.querySelector(window.location.hash) : null;
+    if (hashCard && hashCard.classList.contains('card-item')) {
+      hashCard.classList.add('open');
+      hashCard.setAttribute('aria-expanded', 'true');
+    }
+
+    document.querySelectorAll('.card-item').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target && (e.target.tagName === 'A' || e.target.closest('a'))) return;
+        if (e.target && e.target.closest('input, textarea, select, button, label, form')) return;
+        toggleCard(card);
+      });
+
+      card.addEventListener('keydown', (e) => {
+        if (e.target && e.target.closest('input, textarea, select, button')) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleCard(card);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

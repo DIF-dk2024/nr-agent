@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo.jpeg') }}">
+  <title>NR BAZAR — Заявка принята</title>
+  <style>
+    :root{--bg:#000;--card:#0b0b0b;--text:#fff;--muted:#bdbdbd;--border:#222;--accent:#FF9F0A;}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+    .wrap{max-width:860px;margin:0 auto;padding:24px 14px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;}
+    .id{font-size:34px;font-weight:900;letter-spacing:0.06em;margin:6px 0 4px;}
+    .muted{color:var(--muted);margin:0 0 14px;}
+    a.btn{display:inline-block;background:var(--accent);color:#000;text-decoration:none;font-weight:900;border-radius:16px;padding:12px 14px;}
+    .grid{display:grid;grid-template-columns: repeat(5, minmax(0,1fr));gap:10px;margin-top:12px;}
+    @media(max-width:720px){.grid{grid-template-columns: repeat(3, minmax(0,1fr));}}
+    .thumb{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#0e0e0e;aspect-ratio:1/1}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 style="margin:0 0 8px;">Заявка принята ✅</h1>
+      <p class="muted">Тип: <b>{% if kind == 'buy' %}ПОКУПАЮ{% else %}ПРОДАЮ{% endif %}</b></p>
+      <p class="muted">Твой уникальный номер:</p>
+      <div class="id">{{ sid }}</div>
+
+      {% if photos and photos|length %}
+        <p class="muted" style="margin-top:10px;">Загруженные фото:</p>
+        <div class="grid">
+          {% for name in photos %}
+            <a class="thumb" href="/uploads/{{ sid }}/{{ name }}" target="_blank" rel="noreferrer">
+              <img src="/uploads/{{ sid }}/{{ name }}" alt="{{ name }}">
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Фото не прикреплялись.</p>
+      {% endif %}
+
+      <div style="margin-top:14px;">
+        <a class="btn" href="/">На главную</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
