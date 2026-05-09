@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo.jpeg') }}">
-  <title>NR KITAP — Библиотека материалов Numerical Research</title>
+  <title>Портал Агента — Мои Предложения</title>
   <style>
     :root{
       --bg:#000;
@@ -148,15 +148,15 @@
 <body>
   <div class="wrap">
     <div class="top">
-      <div class="logo"><img src="/static/logo.jpeg" alt="NR KITAP" /></div>
+      <div class="logo"><img src="/static/logo.jpeg" alt="Портал Агента" /></div>
       <div class="title">
-        <h1>NR KITAP</h1>
-        <p>По вопросам - пиши в Telegram <a href="https://t.me/numresearch" target="_blank" rel="noreferrer">@numresearch</a></p>
+        <h1>Портал Агента</h1>
+        <p>написать <a href="https://t.me/numresearch" target="_blank" rel="noreferrer">NR</a></p>
       </div>
     </div>
 
     <div class="hero">
-      <h2>Библиотека материалов Numerical Research</h2>
+      <h2>Мои Предложения</h2>
 </div>
 
     {% with messages = get_flashed_messages() %}
@@ -166,8 +166,6 @@
     {% endwith %}
 <!-- LISTINGS -->
     <div class="listings">
-      <h3>Материалы</h3>
-
       {% if submissions and submissions|length %}
         <div class="cards">
           {% for s in submissions %}
@@ -186,7 +184,7 @@
                     {% endfor %}
                   {% else %}
                     <div class="photo-slide logo-fallback">
-                      <img src="/static/logo.jpeg" alt="NR KITAP">
+                      <img src="/static/logo.jpeg" alt="Портал Агента">
                     </div>
                   {% endif %}
                 </div>
@@ -292,7 +290,7 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="small">Пока нет материалов.</div>
+        <div class="small">Пока нет предложений.</div>
       {% endif %}
     </div>
     <div class="meta">Numerical Research</div>
