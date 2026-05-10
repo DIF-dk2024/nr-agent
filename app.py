@@ -66,6 +66,25 @@ def is_numeric_filter(value) -> bool:
         s = s.replace(ch, '')
     return s.isdigit()
 
+
+@app.template_filter('format_price')
+def format_price_filter(value) -> str:
+    """Display numeric prices with spaces: 12000000 -> 12 000 000."""
+    if value is None:
+        return ""
+    original = str(value).strip()
+    if not original:
+        return ""
+
+    s = original
+    for ch in (' ', '\u00a0', ',', '.', '_'):
+        s = s.replace(ch, '')
+
+    if not s.isdigit():
+        return original
+
+    return f"{int(s):,}".replace(',', ' ')
+
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 app.config["MAX_CONTENT_LENGTH"] = MAX_TOTAL_MB * 1024 * 1024
 

@@ -200,7 +200,7 @@
 
               <div class="meta2">
                 <div class="row1">
-                  {% if s.price_tenge %}<div class="price">{{ s.price_tenge }}{% if s.price_tenge|is_numeric %} ₸{% endif %}</div>{% endif %}
+                  {% if s.price_tenge %}<div class="price">{{ s.price_tenge|format_price }}{% if s.price_tenge|is_numeric %} ₸{% endif %}</div>{% endif %}
                   <div class="small">{{ s.created_utc }}</div>
                 </div>
 
