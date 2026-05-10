@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hmac
+import json
 import os
 import shutil
 import uuid
@@ -37,6 +38,8 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 SUBMISSIONS_CSV = DATA_DIR / "submissions.csv"
 COMMENTS_CSV = DATA_DIR / "comments.csv"
+AGENT_PROFILE_JSON = DATA_DIR / "agent_profile.json"
+AGENT_PROFILE_SID = "_agent_profile"
 
 # ----------------------------
 # Upload policy
@@ -256,6 +259,121 @@ def _write_all_comments(rows: list[dict]) -> None:
         for r in rows:
             w.writerow({c: (r.get(c, "") or "") for c in cols})
     tmp.replace(COMMENTS_CSV)
+
+
+def _agent_profile_defaults() -> dict:
+    return {
+        "name": "",
+        "role": "",
+        "bio": "",
+        "photo": "",
+        "threads": "",
+        "instagram": "",
+        "whatsapp": "",
+        "telegram": "",
+        "website": "",
+        "extra_label": "",
+        "extra_url": "",
+    }
+
+
+def _clean_url_value(value: str, network: str = "") -> str:
+    """Normalise common social/contact values into clickable public links."""
+    v = (value or "").strip()
+    if not v:
+        return ""
+
+    if network in {"telegram", "instagram", "threads"}:
+        username = v.strip()
+        if username.startswith("@"):
+            username = username[1:]
+        if network == "telegram" and "/" not in username and "." not in username:
+            return f"https://t.me/{username}"
+        if network == "instagram" and "/" not in username and "." not in username:
+            return f"https://instagram.com/{username}"
+        if network == "threads" and "/" not in username and "." not in username:
+            return f"https://www.threads.net/@{username}"
+
+    if network == "whatsapp":
+        raw = v.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        if raw.startswith("+") and raw[1:].isdigit():
+            return f"https://wa.me/{raw[1:]}"
+        if raw.isdigit():
+            return f"https://wa.me/{raw}"
+
+    if v.startswith(("http://", "https://", "mailto:", "tel:")):
+        return v
+    return f"https://{v}"
+
+
+def _read_agent_profile() -> dict:
+    profile = _agent_profile_defaults()
+    if AGENT_PROFILE_JSON.exists():
+        try:
+            loaded = json.loads(AGENT_PROFILE_JSON.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                for key in profile:
+                    profile[key] = str(loaded.get(key, "") or "").strip()
+        except Exception:
+            pass
+
+    # Backward/Render-disk fallback: if JSON says no photo but an uploaded file exists,
+    # use the first available profile image.
+    photos = _image_photos(AGENT_PROFILE_SID, _list_photos(AGENT_PROFILE_SID))
+    if profile.get("photo") not in photos:
+        profile["photo"] = photos[0] if photos else ""
+
+    links = []
+    for key, label in [
+        ("threads", "Threads"),
+        ("instagram", "Instagram"),
+        ("whatsapp", "WhatsApp"),
+        ("telegram", "Telegram"),
+        ("website", "Сайт"),
+    ]:
+        url = _clean_url_value(profile.get(key, ""), key)
+        if url:
+            links.append({"label": label, "url": url})
+
+    extra_url = _clean_url_value(profile.get("extra_url", ""), "")
+    if extra_url:
+        links.append({"label": profile.get("extra_label") or "Ссылка", "url": extra_url})
+
+    profile["links"] = links
+    profile["has_content"] = bool(profile.get("name") or profile.get("role") or profile.get("bio") or profile.get("photo") or links)
+    return profile
+
+
+def _write_agent_profile(profile: dict) -> None:
+    current = _agent_profile_defaults()
+    for key in current:
+        current[key] = str(profile.get(key, "") or "").strip()
+    tmp = AGENT_PROFILE_JSON.with_suffix(".tmp")
+    tmp.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(AGENT_PROFILE_JSON)
+
+
+def _save_agent_profile_photo(file_storage) -> str:
+    """Save one public profile photo and return its filename."""
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return ""
+    if not _allowed_file(file_storage.filename):
+        return ""
+
+    profile_dir = UPLOADS_DIR / AGENT_PROFILE_SID
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    # Keep only one active profile photo to avoid confusion.
+    for old in profile_dir.iterdir():
+        if old.is_file():
+            old.unlink()
+
+    safe = _safe_upload_filename(file_storage.filename)
+    target = profile_dir / safe
+    if target.exists():
+        target = profile_dir / f"{target.stem}_{uuid.uuid4().hex[:6]}{target.suffix}"
+    file_storage.save(target)
+    return target.name
 
 
 def _save_comment(card_id: str, contact: str, message: str) -> str:
@@ -563,7 +681,7 @@ def index():
         if (s.get("password") or "").strip() and not s["unlocked"]:
             s["thumb_url"] = "/static/locked_thumb.svg"
 
-    return render_template("index.html", submissions=submissions)
+    return render_template("index.html", submissions=submissions, agent_profile=_read_agent_profile())
 
 
 @app.post("/submit")
@@ -755,6 +873,56 @@ def admin_index():
     return render_template("admin/index.html", submissions=subs)
 
 
+
+
+
+@app.get("/admin/profile")
+@admin_required
+def admin_profile():
+    return render_template("admin/profile.html", profile=_read_agent_profile())
+
+
+@app.post("/admin/profile")
+@admin_required
+def admin_profile_save():
+    profile = _read_agent_profile()
+    for key in [
+        "name",
+        "role",
+        "bio",
+        "threads",
+        "instagram",
+        "whatsapp",
+        "telegram",
+        "website",
+        "extra_label",
+        "extra_url",
+    ]:
+        profile[key] = (request.form.get(key) or "").strip()
+
+    photo = request.files.get("photo")
+    saved_photo = _save_agent_profile_photo(photo)
+    if saved_photo:
+        profile["photo"] = saved_photo
+
+    _write_agent_profile(profile)
+    flash("Профиль агента сохранён.")
+    return redirect(url_for("admin_profile"))
+
+
+@app.post("/admin/profile/photo_delete")
+@admin_required
+def admin_profile_photo_delete():
+    profile_dir = UPLOADS_DIR / AGENT_PROFILE_SID
+    if profile_dir.exists() and profile_dir.is_dir():
+        for old in profile_dir.iterdir():
+            if old.is_file():
+                old.unlink()
+    profile = _read_agent_profile()
+    profile["photo"] = ""
+    _write_agent_profile(profile)
+    flash("Фото профиля удалено.")
+    return redirect(url_for("admin_profile"))
 
 
 @app.get("/admin/new")

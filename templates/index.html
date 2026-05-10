@@ -30,6 +30,34 @@
     .hero h2{margin:0 0 6px;font-size:18px}
     .hero p{margin:0;color:var(--muted);font-size:14px}
 
+    .agent-card{
+      display:flex;
+      gap:14px;
+      align-items:stretch;
+      background:linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
+      border:1px solid var(--border);
+      border-radius:22px;
+      padding:14px;
+      margin:12px 0 14px;
+      overflow:hidden;
+    }
+    .agent-photo{width:132px;flex:0 0 132px;border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#050505;aspect-ratio:1/1;}
+    .agent-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+    .agent-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
+    .agent-kicker{color:var(--accent);font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+    .agent-name{font-size:20px;font-weight:950;line-height:1.1;margin:0 0 4px;word-break:break-word;}
+    .agent-role{color:var(--muted);font-size:13px;margin-bottom:8px;word-break:break-word;}
+    .agent-bio{font-size:13px;line-height:1.4;color:#f2f2f2;white-space:pre-wrap;word-break:break-word;margin-bottom:10px;}
+    .agent-links{display:flex;gap:8px;flex-wrap:wrap;}
+    .agent-link{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:#111;color:#fff;text-decoration:none;border-radius:999px;padding:8px 10px;font-size:12px;font-weight:850;}
+    .agent-link:hover{border-color:rgba(255,159,10,.55);}
+    @media(max-width:720px){
+      .agent-card{flex-direction:column;}
+      .agent-photo{width:100%;aspect-ratio:16/10;flex-basis:auto;}
+      .agent-name{font-size:19px;}
+    }
+
+
     .btnrow{display:flex;gap:10px;}
     .btn{
       width:100%;
@@ -159,6 +187,31 @@
         <p>написать <a href="https://t.me/numresearch" target="_blank" rel="noreferrer">NR</a></p>
       </div>
     </div>
+
+    {% if agent_profile and agent_profile.has_content %}
+      <section class="agent-card" aria-label="Профиль агента">
+        <div class="agent-photo">
+          {% if agent_profile.photo %}
+            <img src="{{ url_for('uploads', sid='_agent_profile', filename=agent_profile.photo) }}" alt="Фото агента" loading="lazy">
+          {% else %}
+            <img src="/static/logo.jpeg" alt="Профиль агента" loading="lazy">
+          {% endif %}
+        </div>
+        <div class="agent-info">
+          <div class="agent-kicker">Агент</div>
+          {% if agent_profile.name %}<h2 class="agent-name">{{ agent_profile.name }}</h2>{% endif %}
+          {% if agent_profile.role %}<div class="agent-role">{{ agent_profile.role }}</div>{% endif %}
+          {% if agent_profile.bio %}<div class="agent-bio">{{ agent_profile.bio }}</div>{% endif %}
+          {% if agent_profile.links and agent_profile.links|length %}
+            <div class="agent-links">
+              {% for link in agent_profile.links %}
+                <a class="agent-link" href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
 
     <div class="hero">
       <h2>Мои Предложения</h2>
