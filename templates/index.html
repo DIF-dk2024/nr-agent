@@ -51,6 +51,8 @@
     .agent-links{display:flex;gap:8px;flex-wrap:wrap;}
     .agent-link{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:#111;color:#fff;text-decoration:none;border-radius:999px;padding:8px 10px;font-size:12px;font-weight:850;}
     .agent-link:hover{border-color:rgba(255,159,10,.55);}
+    .agent-link-muted{color:var(--muted);cursor:default;}
+    .agent-link-muted:hover{border-color:var(--border);} 
     @media(max-width:720px){
       .agent-card{flex-direction:column;}
       .agent-photo{width:100%;aspect-ratio:16/10;flex-basis:auto;}
@@ -188,30 +190,32 @@
       </div>
     </div>
 
-    {% if agent_profile and agent_profile.has_content %}
-      <section class="agent-card" aria-label="Профиль агента">
-        <div class="agent-photo">
-          {% if agent_profile.photo %}
-            <img src="{{ url_for('uploads', sid='_agent_profile', filename=agent_profile.photo) }}" alt="Фото агента" loading="lazy">
-          {% else %}
-            <img src="/static/logo.jpeg" alt="Профиль агента" loading="lazy">
-          {% endif %}
-        </div>
-        <div class="agent-info">
-          <div class="agent-kicker">Агент</div>
-          {% if agent_profile.name %}<h2 class="agent-name">{{ agent_profile.name }}</h2>{% endif %}
-          {% if agent_profile.role %}<div class="agent-role">{{ agent_profile.role }}</div>{% endif %}
-          {% if agent_profile.bio %}<div class="agent-bio">{{ agent_profile.bio }}</div>{% endif %}
-          {% if agent_profile.links and agent_profile.links|length %}
-            <div class="agent-links">
-              {% for link in agent_profile.links %}
-                <a class="agent-link" href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }}</a>
-              {% endfor %}
-            </div>
-          {% endif %}
-        </div>
-      </section>
-    {% endif %}
+    <section class="agent-card" aria-label="Профиль агента">
+      <div class="agent-photo">
+        {% if agent_profile and agent_profile.photo %}
+          <img src="{{ url_for('uploads', sid='_agent_profile', filename=agent_profile.photo) }}" alt="Фото агента" loading="lazy">
+        {% else %}
+          <img src="/static/logo.jpeg" alt="Фото агента" loading="lazy">
+        {% endif %}
+      </div>
+      <div class="agent-info">
+        <div class="agent-kicker">Агент</div>
+        <h2 class="agent-name">{{ agent_profile.name if agent_profile and agent_profile.name else 'Профиль агента' }}</h2>
+        <div class="agent-role">{{ agent_profile.role if agent_profile and agent_profile.role else 'Информация о специалисте по недвижимости' }}</div>
+        <div class="agent-bio">{{ agent_profile.bio if agent_profile and agent_profile.bio else 'Здесь будет фото агента, описание, опыт работы и ссылки для связи: Threads, Instagram, WhatsApp, Telegram и другие.' }}</div>
+        {% if agent_profile and agent_profile.links and agent_profile.links|length %}
+          <div class="agent-links">
+            {% for link in agent_profile.links %}
+              <a class="agent-link" href="{{ link.url }}" target="_blank" rel="noreferrer">{{ link.label }}</a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="agent-links">
+            <span class="agent-link agent-link-muted">Ссылки появятся после заполнения профиля</span>
+          </div>
+        {% endif %}
+      </div>
+    </section>
 
     <div class="hero">
       <h2>Мои Предложения</h2>
