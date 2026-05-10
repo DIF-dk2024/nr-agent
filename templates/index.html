@@ -77,7 +77,9 @@
     .cards{display:grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap:12px;}
     @media(max-width:720px){.cards{grid-template-columns:1fr;}}
 
-    .card-item{display:flex;gap:12px;align-items:stretch;background: var(--card);border:1px solid var(--border);border-radius:20px;padding:12px;cursor:pointer;}
+    .card-item{display:flex;gap:12px;align-items:stretch;background: var(--card);border:1px solid var(--border);border-radius:20px;padding:12px;cursor:pointer;overflow:hidden;}
+    .card-item:not(.open){height:190px;}
+    .card-item.open{height:auto;overflow:visible;}
     .card-item.buyer{background: var(--buyer);border-color:#2d2d2d;}
 
     .photo-carousel{
@@ -108,8 +110,11 @@
     .photo-shell{position:relative;width:150px;flex:0 0 150px;align-self:flex-start;}
     @media(max-width:720px){
       .card-item{flex-direction:column;}
+      .card-item:not(.open){height:360px;}
       .photo-shell{width:100%;flex:0 0 auto;}
+      .card-item:not(.open) .photo-shell{height:210px;}
       .photo-carousel{width:100%;flex-basis:auto;aspect-ratio:16/10;}
+      .card-item:not(.open) .photo-carousel{height:210px;aspect-ratio:auto;}
     }
 
     .meta2{flex:1;min-width:0;}
@@ -257,7 +262,7 @@
                         {% for c in s.comments %}
                           <div class="comment">
                             <div class="comment-head">
-                              <span class="comment-contact">{{ c.contact }}</span>
+                              <span>Комментарий</span>
                               <span>{{ c.created_utc }}</span>
                             </div>
                             <div class="comment-message">{{ c.message }}</div>
